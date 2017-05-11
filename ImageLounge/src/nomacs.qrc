@@ -31,7 +31,7 @@
         <file>img/dir.svg</file>
         <file>img/rotating-cursor.png</file>
         <file>img/save.svg</file>
-		<file>img/export.svg</file>
+        <file>img/export.svg</file>
         <file>img/open.svg</file>
         <file>img/thumbs-move.svg</file>
         <file>img/tp-pattern.png</file>
@@ -72,16 +72,16 @@
         <file>img/show-filename.svg</file>
         <file>img/dummy.svg</file>
         <file>img/settings.svg</file>
-		<file>img/flip-horizontal.svg</file>
-		<file>img/flip-vertical.svg</file>
-		<file>img/exposure.svg</file>
-		<file>img/threshold.svg</file>
-		<file>img/sharpen.svg</file>
-		<file>img/tiny-planet.svg</file>
-		<file>img/invert.svg</file>
-		<file>img/normalize.svg</file>
-		<file>img/auto-adjust.svg</file>
-		<file>img/grayscale.svg</file>
+        <file>img/flip-horizontal.svg</file>
+        <file>img/flip-vertical.svg</file>
+        <file>img/exposure.svg</file>
+        <file>img/threshold.svg</file>
+        <file>img/sharpen.svg</file>
+        <file>img/tiny-planet.svg</file>
+        <file>img/invert.svg</file>
+        <file>img/normalize.svg</file>
+        <file>img/auto-adjust.svg</file>
+        <file>img/grayscale.svg</file>
         <file>img/display-settings.svg</file>
         <file>img/advanced-settings.svg</file>
         <file>descriptions/nomacs-device.xml</file>
@@ -95,5 +95,6 @@
         <file>img/plugin-banner.svg</file>
         <file>img/player-stop.svg</file>
         <file>img/warning.svg</file>
+        <file>cmap/hot.xml</file>
     </qresource>
 </RCC>

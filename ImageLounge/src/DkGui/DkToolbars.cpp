@@ -61,6 +61,8 @@
 //#include <QStringListModel>
 #include <QStandardItemModel>
 #include <QAbstractItemView>
+#include <QXmlStreamReader>
+#include <QVector>
 
 #include <QGridLayout>
 #include <QGraphicsOpacityEffect>
@@ -209,7 +211,7 @@ void DkColorSlider::mouseDoubleClickEvent(QMouseEvent*) {
 	if (color.isValid())
 		this->mColor = color;
 
-	emit colorChanged(this);
+    emit colorChanged(this);
 
 }
 
@@ -233,6 +235,7 @@ DkGradient::DkGradient(QWidget *parent)
 	mGradient = QLinearGradient(0, 0, width(), height() - mClickAreaHeight);
 	
 	mSliders = QVector<DkColorSlider*>();
+
 	init();
 
 };
@@ -248,7 +251,6 @@ void DkGradient::init() {
 	addSlider(1, Qt::white);
 	
 	updateGradient();
-
 
 };
 
@@ -280,6 +282,89 @@ void DkGradient::setGradient(const QLinearGradient& gradient) {
 	update();
 	emit gradientChanged();
 
+}
+
+static bool readColormapPoint(QXmlStreamReader* xmlReader, double& point , QColor& colorAtPoint){
+    while(!xmlReader->atEnd() && !xmlReader->hasError()) {
+        QXmlStreamReader::TokenType token = xmlReader->readNext();
+        // Read next element
+        if(token == QXmlStreamReader::StartElement) {
+            QString elementName(xmlReader->name().toString());
+            if(elementName == "Point"){
+                bool elemOk;
+                qreal r,g,b;
+
+                point = xmlReader->attributes().value("x").toDouble(&elemOk);
+                r = xmlReader->attributes().value("r").toDouble(&elemOk);
+                g = xmlReader->attributes().value("g").toDouble(&elemOk);
+                b = xmlReader->attributes().value("b").toDouble(&elemOk);
+                colorAtPoint.setRgbF(r, g, b);
+            }else{
+                return false;
+            }
+        }
+        if(token == QXmlStreamReader::EndElement) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool DkGradient::loadColormap(const QString colormapName, QLinearGradient& cmap)
+{
+    QString cmapResourceName(":/nomacs/cmap/%1.xml");
+    QFile *xmlFile = new QFile(cmapResourceName.arg(colormapName));
+    if (!xmlFile->open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << QString("failed to load colormap %s: not found").arg(colormapName);
+        return false;
+    }
+    QXmlStreamReader *xmlReader = new QXmlStreamReader(xmlFile);
+
+    //Parse the XML until we reach end of it
+    while(!xmlReader->atEnd() && !xmlReader->hasError()) {
+            // Read next element
+            QXmlStreamReader::TokenType token = xmlReader->readNext();
+            //If token is just StartDocument - go to next
+            if(token == QXmlStreamReader::StartDocument) {
+                    continue;
+            }
+            //If token is StartElement - read it
+            if(token == QXmlStreamReader::StartElement) {
+                QString elementName(xmlReader->name().toString());
+                qDebug() << "start_element  " << elementName;
+
+                /*
+                    if (elementName == "ColorMap"
+                       && xmlReader->attributes().hasAttribute("name")
+                       && xmlReader->attributes().value("name") == colormapName) {
+                       */
+                    if (elementName == "ColorMap") {
+                        // we found our colormap
+                        qDebug() << "found cmap " << colormapName;
+
+                        bool pointOk = false;
+                        double pos;
+                        QColor color;
+                        do{
+                            pointOk = readColormapPoint(xmlReader, pos, color);
+                            qDebug() << pos << "\t" << "R:" << color.red() << "G:" << color.green() << "B:" << color.blue();
+                            cmap.setColorAt(pos, color);
+                        }while(pointOk);
+                        qDebug() << "loaded " << cmap.stops().size() << " stops";
+                        return true;
+                    }
+            }
+    }
+
+    if(xmlReader->hasError()) {
+            qDebug() << QString("error failed parse colormap %s: %s").arg(xmlReader->errorString());
+            return false;
+    }
+
+    //close reader and flush file
+    xmlReader->clear();
+    xmlFile->close();
+    return true;
 }
 
 QLinearGradient DkGradient::getGradient() {
@@ -406,10 +491,8 @@ void DkGradient::mousePressEvent(QMouseEvent *event) {
 void DkGradient::updateGradient() {
 
 	mGradient = QLinearGradient(0, 0, width(), height() - mClickAreaHeight);
-
-	for (int i = 0; i < mSliders.size(); i++) 
-		mGradient.setColorAt(mSliders.at(i)->getNormedPos(), mSliders.at(i)->getColor());
-
+    for (int i = 0; i < mSliders.size(); i++)
+        mGradient.setColorAt(mSliders.at(i)->getNormedPos(), mSliders.at(i)->getColor());
 
 }
 
@@ -540,6 +623,21 @@ DkTransferToolBar::DkTransferToolBar(QWidget * parent)
 	// >DIR: more compact gui [2.3.2012 markus]
 	this->addSeparator();
 	//this->addWidget(new QLabel(tr("Active channel:")));
+
+    this->addWidget(new QLabel(tr("Mode"), this));
+    mFalseColorModeComboBox = new QComboBox(this);
+    mFalseColorModeComboBox->setStatusTip(tr("Selects the Pseudo Color mode"));
+    mFalseColorModeComboBox->addItem(tr("Color"), mode_rgb);
+    mFalseColorModeComboBox->addItem(tr("Colormap"), mode_gray);
+    this->addWidget(mFalseColorModeComboBox);
+    connect(mFalseColorModeComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(setImageMode(int)));
+
+
+    mColorMapComboBox = new QComboBox(this);
+    mColorMapComboBox->setStatusTip(tr("Selects a colormap to apply onto the image"));
+    mColorMapComboBox->setVisible(false);
+    mColorMapComboBox->addItem("hot", "hot");	//TODO add list of available colormaps
+    this->addWidget(mColorMapComboBox);
 
 	mChannelComboBox = new QComboBox(this);
 	mChannelComboBox->setStatusTip(tr("Changes the displayed color channel"));
@@ -716,11 +814,12 @@ void DkTransferToolBar::insertSlider(qreal pos) {
 
 };
 
-void DkTransferToolBar::setImageMode(int mode) {
-
-	qDebug() << "and I received...";
-	applyImageMode(mode);
-
+void DkTransferToolBar::setImageMode(int itemIndex) {
+    bool convertOk;
+    int image_mode = mFalseColorModeComboBox->itemData(itemIndex).toInt(&convertOk);
+    if(convertOk){
+        applyImageMode(image_mode);
+    }
 };
 
 void DkTransferToolBar::applyImageMode(int mode) {
@@ -730,33 +829,42 @@ void DkTransferToolBar::applyImageMode(int mode) {
 	if (mode == mImageMode)
 		return;
 
+    qDebug() << "applying false color mode: " << mode;
+
 	//if (mImageMode != mode_invalid_format) {
 	//	enableToolBar(true);
 	//	emit channelChanged(0);
 	//}
 
-	mImageMode = mode;
-	mEnableTFCheckBox->setEnabled(mImageMode != mode_invalid_format);	
+//	mImageMode = mode;
+//	mEnableTFCheckBox->setEnabled(mImageMode != mode_invalid_format);
 
 	if (mImageMode == mode_invalid_format) {
 		enableToolBar(false);
 		return;
 	}
 
-	disconnect(mChannelComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(changeChannel(int)));
+    disconnect(mChannelComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(changeChannel(int)));
+
+
+    //TODO handle 'gray' 1-channel images
 	mChannelComboBox->clear();
+    mChannelComboBox->addItem(tr("RGB"));
+    mChannelComboBox->addItem(tr("Red"));
+    mChannelComboBox->addItem(tr("Green"));
+    mChannelComboBox->addItem(tr("Blue"));
 
 	if (mode == mode_gray) {
-		mChannelComboBox->addItem(tr("Gray"));
-	}
+        mColorMapComboBox->setVisible(true);
+        mChannelComboBox->setVisible(true);
+        loadColormaps();
+    }
 	else if (mode == mode_rgb) {
-		mChannelComboBox->addItem(tr("RGB"));
-		mChannelComboBox->addItem(tr("Red"));
-		mChannelComboBox->addItem(tr("Green"));
-		mChannelComboBox->addItem(tr("Blue"));
-	}
-
-	mChannelComboBox->setCurrentIndex(0);
+        mColorMapComboBox->setVisible(false);
+        mChannelComboBox->setVisible(true);
+        mChannelComboBox->setCurrentIndex(0);
+        updateGradientHistory();
+    }
 
 	connect(mChannelComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(changeChannel(int)));
 
@@ -849,6 +957,29 @@ void DkTransferToolBar::updateGradientHistory() {
 		p.fillRect(cg.rect(), g);
 		mHistoryCombo->addItem(cg, tr(""));
 	}
+}
+
+void DkTransferToolBar::loadColormaps() {
+
+    mHistoryCombo->clear();
+    mHistoryCombo->setIconSize(QSize(50,10));
+
+    QVector<QString> *availableColorMaps = new QVector<QString>({"hot"});
+
+    for (QString cmapName: *availableColorMaps) {
+        bool cmapOk;
+        QLinearGradient cmap;
+        cmapOk = DkGradient::loadColormap(cmapName, cmap);
+
+        if(cmapOk) {
+            QPixmap cg(256, 10);
+            QPainter p(&cg);
+            p.setBrush(cmap);
+            p.setPen(Qt::NoPen);
+            p.fillRect(cg.rect(), cmap);
+            mHistoryCombo->addItem(cg, cmapName);
+        }
+    }
 }
 
 void DkTransferToolBar::switchGradient(int idx) {

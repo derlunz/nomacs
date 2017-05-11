@@ -382,6 +382,7 @@ QScrollArea#DkPreferenceTabs,
 QWidget#DkPreferenceTabs,
 QWidget#DkBatchTabs {
 	background-color: #333;
+    color: #fff;
 }
 
 QPushButton#DkTabEntryWidget,

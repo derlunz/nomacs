@@ -2161,8 +2161,7 @@ void DkHistogram::paintEvent(QPaintEvent*) {
 	QString histText1("Pixels: %1 MPix: %2");
 	painter.drawText(QPoint(margin, height() - 2 * TEXT_SIZE),
 					 histText1.arg(mNumPixels, 10, 10, QChar(' '))
-							  .arg(megaPixels, 10, 'f', -1,  QChar(' '))
-							  .arg(100.0 * activeRatio, 5, 'f', 3, QChar(' ')));
+                              .arg(megaPixels, 10, 'f', -1,  QChar(' ')));
 	if (mMinBinValue < 256) {
 		//gray image statistics
 		QString histText2("Min: %1 Max: %2 Value Count: %3");

@@ -119,6 +119,7 @@ public:
 	void reset();
 	QLinearGradient getGradient();
 	void setGradient(const QLinearGradient& gradient);
+    static bool loadColormap(const QString colormapName, QLinearGradient& cmap);
 
 signals:
 	void gradientChanged() const;
@@ -212,6 +213,7 @@ protected:
 	void loadSettings();
 	void saveSettings();
 	void updateGradientHistory();
+    void loadColormaps();
 
 private:
 	void createIcons();
@@ -228,6 +230,8 @@ private:
 		
 	DkGradient *mGradient = 0;
 	QComboBox *mChannelComboBox = 0;
+    QComboBox *mFalseColorModeComboBox = 0;
+    QComboBox *mColorMapComboBox = 0;
 
 	QComboBox* mHistoryCombo = 0;
 	QVector<QLinearGradient> mOldGradients;

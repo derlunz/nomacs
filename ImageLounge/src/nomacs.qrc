@@ -98,8 +98,8 @@
         <file>cmap/hot.xml</file>
         <file>cmap/accent.xml</file>
         <file>cmap/blues.xml</file>
-        <file>cmap/colormaps.xml</file>
         <file>cmap/gist_rainbow.xml</file>
         <file>cmap/oranges.xml</file>
+        <file>cmap/BuPn.xml</file>
     </qresource>
 </RCC>

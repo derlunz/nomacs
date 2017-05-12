@@ -52,6 +52,7 @@
 #include <QHBoxLayout>
 #include <QLayout>
 #include <QIcon>
+#include <QDir>
 #include <QAction>
 #include <QTranslator>
 #include <QDoubleSpinBox>
@@ -365,6 +366,18 @@ bool DkGradient::loadColormap(const QString colormapName, QLinearGradient& cmap)
     xmlReader->clear();
     xmlFile->close();
     return true;
+}
+
+static QVector<QString> packagedColormaps (){
+    QVector<QString> cmapList;
+
+    // use colormap resource name as colormap name
+    QDir cmapsInResources(":/nomacs/cmap/");
+    for(QString resourceName: cmapsInResources.entryList()){
+        //file consume extension
+        cmapList.append(resourceName.remove(resourceName.size() - 4 , 4));
+    }
+    return cmapList;
 }
 
 QLinearGradient DkGradient::getGradient() {

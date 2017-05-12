@@ -33,6 +33,7 @@
 #include <QObject>
 #include <QCompleter>
 #pragma warning(pop)		// no warnings from includes - end
+#include <cstdint>
 
 // Qt defines
 class QCheckBox;
@@ -120,7 +121,10 @@ public:
 	QLinearGradient getGradient();
 	void setGradient(const QLinearGradient& gradient);
     static bool loadColormap(const QString colormapName, QLinearGradient& cmap);
+    static QPointer<QVector<QString>> packagedColormaps();
 
+    void hideSliders();
+    void showSliders();
 signals:
 	void gradientChanged() const;
 		
@@ -138,8 +142,8 @@ protected:
 		
 private:
 	void init();
-	void addSlider(qreal pos, QColor color);
 	void clearAllSliders();
+	void addSlider(qreal pos, QColor color);
 	void updateGradient();
 	qreal getNormedPos(int pos);
 	int getAbsolutePos(qreal pos);
@@ -153,6 +157,7 @@ private:
 
 	DkColorSlider *mActiveSlider = 0;
 	bool mIsActiveSliderExisting = false;
+	bool mShowSliders = true;
 };
 
 enum toolBarIcons {
@@ -176,13 +181,20 @@ enum imageModes {
 	mode_rgb,
 };
 
+enum class FalseColorMode : std::int8_t {
+	CUSTOM = 0,                     /// colorize using predefined colormaps
+	COLOR_MAP = 1,                  /// colorize with user supplied curves
+	DISABLED = 2,                   /// disable the falsecolor toolbar
+};
+
 class DkTransferToolBar : public QToolBar {
 	Q_OBJECT
 
 public:
 	DkTransferToolBar(QWidget *parent);
 	~DkTransferToolBar();
-		
+
+	FalseColorMode pseudoColorMode() { return mFalseColorMode; }
 
 signals:
 	void pickColorRequest(bool enabled) const;
@@ -195,7 +207,6 @@ signals:
 public slots:
 	virtual void paintEvent(QPaintEvent* event);
 	void insertSlider(qreal pos);
-	void setImageMode(int mode);
 	void saveGradient();
 	void deleteGradientMenu(QPoint pos);
 	void deleteGradient();
@@ -206,14 +217,16 @@ protected slots:
 	void pickColor(bool enabled);
 	void changeChannel(int index);
 	void enableTFCheckBoxClicked(int state);
-	void switchGradient(int idx);
+	void selectGradient(int idx);
+	void selectFalseColorMode(int idx);
 
 protected:
 	virtual void resizeEvent ( QResizeEvent * event );
 	void loadSettings();
 	void saveSettings();
-	void updateGradientHistory();
+	void loadGradientHistory();
     void loadColormaps();
+    void applyFalseColorMode(FalseColorMode newMode);
 
 private:
 	void createIcons();
@@ -231,13 +244,14 @@ private:
 	DkGradient *mGradient = 0;
 	QComboBox *mChannelComboBox = 0;
     QComboBox *mFalseColorModeComboBox = 0;
-    QComboBox *mColorMapComboBox = 0;
 
 	QComboBox* mHistoryCombo = 0;
+	QVector<QLinearGradient> mCurGradients;
 	QVector<QLinearGradient> mOldGradients;
 
 	QGraphicsOpacityEffect *mEffect = 0;
 	int mImageMode = mode_uninitialized;
+	FalseColorMode mFalseColorMode = FalseColorMode::CUSTOM;
 
 };
 

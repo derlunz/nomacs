@@ -34,6 +34,7 @@
 #include <QCompleter>
 #pragma warning(pop)		// no warnings from includes - end
 #include <cstdint>
+#include "DkNoMacs.h"
 
 // Qt defines
 class QCheckBox;
@@ -191,7 +192,7 @@ class DkTransferToolBar : public QToolBar {
 	Q_OBJECT
 
 public:
-	DkTransferToolBar(QWidget *parent);
+	DkTransferToolBar(DkNoMacs *parent);
 	~DkTransferToolBar();
 
 	FalseColorMode pseudoColorMode() { return mFalseColorMode; }
@@ -248,6 +249,9 @@ private:
 	QComboBox* mHistoryCombo = 0;
 	QVector<QLinearGradient> mCurGradients;
 	QVector<QLinearGradient> mOldGradients;
+	size_t mActiveGradientIndex;
+	size_t mLastColorMapIndex;
+	size_t mLastCustomGradientIndex;
 
 	QGraphicsOpacityEffect *mEffect = 0;
 	int mImageMode = mode_uninitialized;

@@ -31,6 +31,9 @@
 #include "DkUtils.h"
 #include "DkImageStorage.h"
 #include "DkQuickAccess.h"
+#include "DkTimer.h"
+#include "DkNoMacs.h"
+#include "DkViewPort.h"
 
 #pragma warning(push, 0)	// no warnings from includes - begin
 #include <QToolBar>
@@ -220,10 +223,9 @@ void DkColorSlider::mouseDoubleClickEvent(QMouseEvent*) {
 DkGradient::DkGradient(QWidget *parent) 
 	: QWidget(parent){
 
-	setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Maximum);
-
+	this->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Maximum);
 	this->setMinimumWidth(100);
-	this->setMaximumWidth(600);
+	//this->setMaximumWidth(600);
 
 	this->setFixedHeight(40);
 
@@ -322,56 +324,58 @@ static bool readColormapPoint(QXmlStreamReader* xmlReader, double& point , QColo
     return false;
 }
 
+/** loadColormap loads colormaps from resources.
+ *
+ *  NOTE: This function is unfit to reliably load anything, but the included,
+ *        well-known colormaps.
+ */
 bool DkGradient::loadColormap(const QString colormapName, QLinearGradient& cmap)
 {
     QString cmapResourceName(":/nomacs/cmap/%1.xml");
     QFile *xmlFile = new QFile(cmapResourceName.arg(colormapName));
+    bool foundMap = false;
+    DkTimer dt;
+
+    // load colormap by name from packaged resources
     if (!xmlFile->open(QIODevice::ReadOnly | QIODevice::Text)) {
         qDebug() << QString("failed to load colormap %s: not found").arg(colormapName);
         return false;
     }
     QXmlStreamReader *xmlReader = new QXmlStreamReader(xmlFile);
 
-    //Parse the XML until we reach end of it
-    while(!xmlReader->atEnd() && !xmlReader->hasError()) {
-            // Read next element
+    //Parse the XML until we find the first "ColorMap"
+    while(!foundMap && !xmlReader->atEnd() && !xmlReader->hasError()) {
             QXmlStreamReader::TokenType token = xmlReader->readNext();
-            //If token is just StartDocument - go to next
+
             if(token == QXmlStreamReader::StartDocument) {
                     continue;
             }
-            //If token is StartElement - read it
+
             if(token == QXmlStreamReader::StartElement) {
                 QString elementName(xmlReader->name().toString());
+                if (elementName == "ColorMap") {
 
-                    if (elementName == "ColorMap") {
+                    // we found our colormap
+                    bool pointOk = false;
+                    double pos;
+                    QColor color;
 
-                        // we found our colormap
-                        bool pointOk = false;
-                        double pos;
-                        QColor color;
+                    do{
+                        pointOk = readColormapPoint(xmlReader, pos, color);
+                        cmap.setColorAt(pos, color);
+                        //qDebug() << "step: " << pos << "\t" << "R:" << color.red() << "G:" << color.green() << "B:" << color.blue();
+                    }while(pointOk);
 
-                        do{
-                            pointOk = readColormapPoint(xmlReader, pos, color);
-                            cmap.setColorAt(pos, color);
-                            qDebug() << "step: " << pos << "\t" << "R:" << color.red() << "G:" << color.green() << "B:" << color.blue();
-                        }while(pointOk);
-
-                        qDebug() << "loaded " << cmap.stops().size() << " stops";
-                        return true;
-                    }
+                    qDebug() << "loaded colormap '" << colormapName << "' in " << dt;
+                    foundMap = true;
+                }
             }
     }
 
-    if(xmlReader->hasError()) {
-            qDebug() << QString("error failed parse colormap %s: %s").arg(xmlReader->errorString());
-            return false;
-    }
-
-    //close reader and flush file
     xmlReader->clear();
     xmlFile->close();
-    return true;
+
+    return foundMap;
 }
 
 static QVector<QString> packagedColormaps (){
@@ -628,7 +632,7 @@ void DkGradient::activateSlider(DkColorSlider *sender) {
 };
 
 //
-DkTransferToolBar::DkTransferToolBar(QWidget * parent) 
+DkTransferToolBar::DkTransferToolBar(DkNoMacs * parent)
 	: QToolBar(tr("Pseudo Color Toolbar"), parent) {
 
 	loadSettings();
@@ -680,14 +684,24 @@ DkTransferToolBar::DkTransferToolBar(QWidget * parent)
 	mEffect = new QGraphicsOpacityEffect(mGradient);
 	mEffect->setOpacity(1);
 	mGradient->setGraphicsEffect(mEffect);
-	QSizePolicy pol;
-	pol.setHorizontalPolicy(QSizePolicy::MinimumExpanding);
-	mGradient->setSizePolicy(pol);
 
 	// Initialize the combo box for color images:
-	mImageMode = mode_uninitialized;
+	DkViewPort* viewport = parent->viewport();
+	enum QImage::Format viewportFmt = viewport->getImage().format(); //TODO get correct image mode
+	QList<int> grayFormats = {QImage::Format_Grayscale8,  QImage::Format_Indexed8};
+	QList<int> colorFormats = {QImage::Format_ARGB32,  QImage::Format_RGB32};
+
+	// Adjust available input channels  to viewport content
+	if(grayFormats.contains(viewportFmt)) {
+		mImageMode = mode_gray;
+	} else if(colorFormats.contains(viewportFmt)) {
+		mImageMode = mode_rgb;
+	} else {
+		mImageMode = mode_uninitialized;
+	}
 	applyImageMode(mode_rgb);
 
+	// setup toolbar default state
 	mFalseColorMode = FalseColorMode::CUSTOM;
 	applyFalseColorMode(mFalseColorMode);
 
@@ -699,7 +713,7 @@ DkTransferToolBar::DkTransferToolBar(QWidget * parent)
 
 	// needed for initialization
 	connect(this, SIGNAL(gradientChanged()), mGradient, SIGNAL(gradientChanged()));
-};
+}
 
 DkTransferToolBar::~DkTransferToolBar() {
 };
@@ -757,8 +771,11 @@ void DkTransferToolBar::saveSettings() {
 		}
 		settings.endArray();
 	}
-
 	settings.endArray();
+
+	settings.setValue("last_active_colormap_index", (int)mLastColorMapIndex);
+	settings.setValue("last_active_custom_color_index", (int)mLastCustomGradientIndex);
+
 	settings.endGroup();
 }
 
@@ -768,7 +785,6 @@ void DkTransferToolBar::loadSettings() {
 	settings.beginGroup("Pseudo Color");
 
 	int gSize = settings.beginReadArray("oldGradients");
-
 	for (int idx = 0; idx < gSize; idx++) {
 		settings.setArrayIndex(idx);
 
@@ -790,8 +806,12 @@ void DkTransferToolBar::loadSettings() {
 		g.setStops(stops);
 		mOldGradients.append(g);
 	}
-
 	settings.endArray();
+
+
+	mLastColorMapIndex = settings.value("last_active_colormap_index").toInt();
+	mLastCustomGradientIndex = settings.value("last_active_custom_color_index").toInt();
+
 	settings.endGroup();
 }
 
@@ -867,28 +887,32 @@ void DkTransferToolBar::applyFalseColorMode(FalseColorMode newMode) {
 
 	qDebug() << "applying falsecolor mode: " << (int)newMode;
 
-	if (newMode == FalseColorMode::COLOR_MAP ) {
+	if(mFalseColorMode == FalseColorMode::COLOR_MAP){
+		mLastColorMapIndex = mActiveGradientIndex;
+	}
+	if(mFalseColorMode == FalseColorMode::CUSTOM){
+		mLastCustomGradientIndex = mActiveGradientIndex;
+	}
 
+	if (newMode == FalseColorMode::COLOR_MAP ) {
+		mFalseColorMode = newMode;
         mFalseColorModeComboBox->setVisible(true);
         mChannelComboBox->setVisible(true);
         loadColormaps();
     }
     else if (newMode == FalseColorMode::CUSTOM) {
-
+        mFalseColorMode = newMode;
         mFalseColorModeComboBox->setVisible(true);
         mChannelComboBox->setVisible(true);
         loadGradientHistory();
     }
     else if (newMode == FalseColorMode::DISABLED) {
-
+        mFalseColorMode = newMode;
         mFalseColorModeComboBox->setVisible(false);
         mChannelComboBox->setVisible(false);
     }
 
-
-    if (!mCurGradients.empty())
-        mGradient->setGradient(mCurGradients.first());
-
+    emit selectGradient(mActiveGradientIndex);
 };
 
 void DkTransferToolBar::pickColor(bool enabled) {
@@ -966,10 +990,13 @@ void DkTransferToolBar::paintEvent(QPaintEvent* event) {
 
 void DkTransferToolBar::loadGradientHistory() {
 
+	//clear toolbar content
 	mCurGradients.clear();
 	mHistoryCombo->clear();
 	mHistoryCombo->setIconSize(QSize(64,10));
 
+	//load gradients from settings, compute thumbnails
+	qDebug() << "loading " << mOldGradients.size() << "color gradients";
 	for (int idx = 0; idx < mOldGradients.size(); idx++) {
 
 		QPixmap cg(64, 10);
@@ -980,14 +1007,25 @@ void DkTransferToolBar::loadGradientHistory() {
 		mHistoryCombo->addItem(cg, tr(""));
 		mCurGradients.append(g);
 	}
+
+    // restore last active gradient
+    if(mLastCustomGradientIndex >= 0 &&
+       mLastCustomGradientIndex < mCurGradients.size()){
+        mActiveGradientIndex = mLastCustomGradientIndex;
+    }else{
+        mLastCustomGradientIndex = 0;
+        mActiveGradientIndex = 0;
+    }
 }
 
 void DkTransferToolBar::loadColormaps() {
 
+    // clear toolbar content
     mCurGradients.clear();
     mHistoryCombo->clear();
     mHistoryCombo->setIconSize(QSize(64,10));
 
+    // load available colormaps. compute thumbnails
     QVector<QString> cmapList = packagedColormaps();
     for (QString cmapName: cmapList) {
 
@@ -1004,6 +1042,15 @@ void DkTransferToolBar::loadColormaps() {
             mCurGradients.append(cmap);
         }
     }
+
+    // restore last active color map
+    if(mLastColorMapIndex >= 0 &&
+       mLastColorMapIndex < mCurGradients.size()){
+        mActiveGradientIndex = mLastColorMapIndex;
+    }else{
+        mLastColorMapIndex = 0;
+        mActiveGradientIndex = 0;
+    }
 }
 
 
@@ -1015,9 +1062,12 @@ void DkTransferToolBar::selectGradient(int idx) {
 
 	if (mFalseColorMode == FalseColorMode::CUSTOM) {
 
+		mLastColorMapIndex = idx;
 		mGradient->setGradient(mCurGradients[idx]);
 
 	}else if(mFalseColorMode == FalseColorMode::COLOR_MAP) {
+
+		mLastCustomGradientIndex = idx;
 		mGradient->setGradient(mCurGradients[idx]);
 		mGradient->hideSliders();
 	}

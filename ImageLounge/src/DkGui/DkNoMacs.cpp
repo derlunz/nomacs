@@ -470,6 +470,7 @@ void DkNoMacs::enableNoImageActions(bool enable) {
 	am.action(DkActionManager::menu_edit_copy)->setEnabled(enable);
 	am.action(DkActionManager::menu_edit_copy_buffer)->setEnabled(enable);
 	am.action(DkActionManager::menu_edit_copy_color)->setEnabled(enable);
+	am.action(DkActionManager::menu_edit_copy_filtered)->setEnabled(enable);
 	am.action(DkActionManager::menu_tools_wallpaper)->setEnabled(enable);
 
 	am.action(DkActionManager::menu_tools_thumbs)->setEnabled(enable);

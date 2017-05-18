@@ -1380,6 +1380,21 @@ void DkViewPort::copyImageBuffer() {
 	clipboard->setMimeData(mimeData);
 }
 
+
+void DkViewPort::copyCurrentFiles() {
+
+	if (getImage().isNull())
+		return;
+
+	QMimeData* mimeData = new QMimeData;
+
+	if (!getImage().isNull())
+		mimeData->setImageData(getImage());
+
+	QClipboard* clipboard = QApplication::clipboard();
+	clipboard->setMimeData(mimeData);
+}
+
 void DkViewPort::animateFade() {
 
 	mAnimationValue = 1.0f-(float)(mAnimationTime.elapsed()/1000.0)/DkSettingsManager::param().display().animationDuration;

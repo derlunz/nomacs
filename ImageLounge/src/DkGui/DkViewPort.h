@@ -174,6 +174,7 @@ public slots:
 	void copyPixelColorValue();
 	void copyImageBuffer();
 	void copyImage();
+	void copyCurrentFiles();
 	QMimeData* createMime() const;
 
 	// image manipulators

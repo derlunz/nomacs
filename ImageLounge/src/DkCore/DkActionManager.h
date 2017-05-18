@@ -163,6 +163,7 @@ public:
 		menu_edit_copy,
 		menu_edit_copy_buffer,
 		menu_edit_copy_color,
+		menu_edit_copy_filtered,
 		menu_edit_paste,
 		menu_edit_shortcuts,
 		menu_edit_preferences,
@@ -430,6 +431,7 @@ public:
 		shortcut_crop			= Qt::Key_C,
 		shortcut_copy_buffer	= Qt::CTRL + Qt::SHIFT + Qt::Key_C,
 		shortcut_copy_color		= Qt::CTRL + Qt::ALT + Qt::Key_C,
+		shortcut_copy_filtered	= Qt::CTRL + Qt::ALT + Qt::SHIFT + Qt::Key_C,
 
 		// tools
 		shortcut_batch_processing = Qt::CTRL + Qt::SHIFT + Qt::Key_B,

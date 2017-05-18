@@ -505,6 +505,7 @@ QMenu* DkActionManager::createEditMenu(QWidget* parent /* = 0 */) {
 
 	mEditMenu->addAction(mEditActions[menu_edit_copy]);
 	mEditMenu->addAction(mEditActions[menu_edit_copy_buffer]);
+	mEditMenu->addAction(mEditActions[menu_edit_copy_filtered]);
 	mEditMenu->addAction(mEditActions[menu_edit_paste]);
 	mEditMenu->addAction(mEditActions[menu_edit_delete]);
 	mEditMenu->addSeparator();
@@ -1130,6 +1131,11 @@ void DkActionManager::createActions(QWidget* parent) {
 	mEditActions[menu_edit_copy_buffer]->setShortcutContext(Qt::WidgetWithChildrenShortcut);
 	mEditActions[menu_edit_copy_buffer]->setShortcut(shortcut_copy_buffer);
 	mEditActions[menu_edit_copy_buffer]->setStatusTip(QObject::tr("copy image"));
+
+	mEditActions[menu_edit_copy_filtered] = new QAction(QObject::tr("Copy C&urrent Files"), parent);
+	mEditActions[menu_edit_copy_filtered]->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+	mEditActions[menu_edit_copy_filtered]->setShortcut(shortcut_copy_filtered);
+	mEditActions[menu_edit_copy_filtered]->setStatusTip(QObject::tr("copy filtered files. copy current direcories files, if no filter is active"));
 
 	mEditActions[menu_edit_copy_color] = new QAction(QObject::tr("Copy Co&lor"), parent);
 	mEditActions[menu_edit_copy_color]->setShortcutContext(Qt::WidgetWithChildrenShortcut);
